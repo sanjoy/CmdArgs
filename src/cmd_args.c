@@ -181,3 +181,64 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 	return 1;
 }
 
+static char *
+type_to_string (CmdOptionType type)
+{
+	switch (type) {
+	case TYPE_bool:
+		return "boolean";
+	case TYPE_string:
+		return "string";
+	case TYPE_double:
+		return "floating point";
+	case TYPE_long:
+		return "integer";
+	}
+	assert (0);
+	return NULL;
+}
+
+#define print_usage_for(option, type, usage, default, us_to_dash)		\
+	do {																\
+		char *option_name;												\
+		if (us_to_dash)													\
+			option_name = replace_underscore_with_dash					\
+				(option);												\
+		else															\
+			option_name = option_name;									\
+		if (type == TYPE_bool) {										\
+			printf ("--disable-%s --enable-%s [default=%d]: %s\n",		\
+			        option_name, option_name, default, usage);			\
+		} else {														\
+			if (type == TYPE_string)									\
+				printf ("--%s=<%s value> [default=%s]: %s\n",			\
+				        option_name, type_to_string (type), default,	\
+				        usage);											\
+			else if (type == TYPE_double)								\
+				printf ("--%s=<%s value> [default=%lf]: %s\n",			\
+				        option_name, type_to_string (type), default,	\
+				        usage);											\
+			else if (type == TYPE_long)									\
+				printf ("--%s=<%s value> [default=%ld]: %s\n",			\
+				        option_name, type_to_string (type), default,	\
+				        usage);											\
+		}																\
+		if (us_to_dash)													\
+			free (option_name);											\
+	} while (0)
+
+void
+cmd_show_usage (void)
+{
+#ifdef CMD_UNDERSCORE_TO_DASH
+	int us_to_d = 1;
+#else
+	int us_to_d = 0;
+#endif
+
+#define CMD_DEFINE_ARG(option_name, type, default, usage)	\
+	print_usage_for (#option_name, TYPE_##type, usage,		\
+	default, us_to_d);
+
+#include CMD_ARGS_OPTION_FILE
+}
