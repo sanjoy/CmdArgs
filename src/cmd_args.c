@@ -31,7 +31,6 @@ typedef enum {
 	TYPE_long,
 	TYPE_double,
 	TYPE_string,
-	TYPE_char,
 	TYPE_bool
 } CmdOptionType;
 
