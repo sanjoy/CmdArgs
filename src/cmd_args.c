@@ -20,6 +20,10 @@
 #define STRUCT_TYPE struct CMD_STRUCT_NAME
 #endif
 
+#ifndef CMD_PRETTY_PRINT_COLUMN_WIDTH
+#define CMD_PRETTY_PRINT_COLUMN_WIDTH 80
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -202,31 +206,60 @@ type_to_string (CmdOptionType type)
 	return NULL;
 }
 
-#define print_usage_for(option, type, usage, default, us_to_dash)		\
+#define CMD_PRETTY_PRINT_COLUMN_WIDTH_DELTA 20
+
+#ifdef CMD_PRETTY_PRINT
+static void
+pretty_print_usage_string (char *str, int margin)
+{
+	int prn_len = CMD_PRETTY_PRINT_COLUMN_WIDTH - margin;
+
+	if (prn_len < CMD_PRETTY_PRINT_COLUMN_WIDTH_DELTA) {
+		printf ("\n");
+		printf ("%s\n", str);
+	} else {
+		int i, len = strlen (str);
+		for (i = 0; i < len; i++) {
+			printf ("%c", str [i]);
+			if (i != 0 && (i % prn_len) == 0) {
+				int j = 0;
+				printf ("\n");
+
+				for (j = 0; j < (margin - 1); j++) {
+					printf (" ");
+				}
+			}
+		}
+		if (((i - 1) % prn_len) != 0)
+			printf ("\n");
+	}
+}
+#else
+static void
+pretty_print_usage_string (char *str, int margin)
+{
+	printf ("%s\n", str);
+}
+#endif
+
+#define print_usage_for(option, type, usage, def_value, us_to_dash)		\
 	do {																\
 		char *option_name;												\
+		int margin = 0;													\
 		if (us_to_dash)													\
-			option_name = replace_underscore_with_dash					\
-				(option);												\
+			option_name = replace_underscore_with_dash (option);		\
 		else															\
 			option_name = option_name;									\
 		if (type == TYPE_bool) {										\
-			printf ("--disable-%s --enable-%s [default=%d]: %s\n",		\
-			        option_name, option_name, default, usage);			\
+			margin = printf ("--disable-%s, --enable-%s"				\
+			                 " [default=%s]: ", option_name,			\
+			                 option_name, def_value);					\
 		} else {														\
-			if (type == TYPE_string)									\
-				printf ("--%s=<%s value> [default=%s]: %s\n",			\
-				        option_name, type_to_string (type), default,	\
-				        usage);											\
-			else if (type == TYPE_double)								\
-				printf ("--%s=<%s value> [default=%lf]: %s\n",			\
-				        option_name, type_to_string (type), default,	\
-				        usage);											\
-			else if (type == TYPE_long)									\
-				printf ("--%s=<%s value> [default=%ld]: %s\n",			\
-				        option_name, type_to_string (type), default,	\
-				        usage);											\
+			margin = printf ("--%s=<%s value> [default=%s]: ",			\
+			                 option_name, type_to_string (type),		\
+			                 def_value);								\
 		}																\
+		pretty_print_usage_string (usage, margin);						\
 		if (us_to_dash)													\
 			free (option_name);											\
 	} while (0)
@@ -240,9 +273,9 @@ cmd_show_usage (void)
 	int us_to_d = 0;
 #endif
 
-#define CMD_DEFINE_ARG(option_name, type, default, usage)	\
+#define CMD_DEFINE_ARG(option_name, type, def_value, usage)	\
 	print_usage_for (#option_name, TYPE_##type, usage,		\
-	default, us_to_d);
+	#def_value, us_to_d);
 
 #include CMD_ARGS_OPTION_FILE
 }
