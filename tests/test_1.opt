@@ -4,7 +4,7 @@
 
 CMD_DEFINE_ARG (string_one, string, "default-value", "Some Usage")
 CMD_DEFINE_ARG (string_two, string, NULL, "This defaults to NULL.")
-CMD_DEFINE_ARG (bool_one, bool, 0, "Should test --disable-bool-one and --enable-bool-one")
-CMD_DEFINE_ARG (bool_two, bool, 0, "Should test --disable-bool-two and --enable-bool-two")
+CMD_DEFINE_ARG (bool_one, bool, true, "Should test --disable-bool-one and --enable-bool-one")
+CMD_DEFINE_ARG (bool_two, bool, false, "Should test --disable-bool-two and --enable-bool-two")
 CMD_DEFINE_ARG (long_one, long, 0, "Long")
 CMD_DEFINE_ARG (double_one, double, -1.0, "Double")

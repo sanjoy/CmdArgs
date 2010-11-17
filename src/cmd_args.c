@@ -154,11 +154,15 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 	argc--;
 	argv++;
 
-#define CMD_DEFINE_ARG(option, type, default, help_str) (cmd->option = default);
+#define true 1
+#define false 0
+#define CMD_DEFINE_ARG(option, type, def_value, help_str) (cmd->option = def_value);
 #include CMD_ARGS_OPTION_FILE
 #undef CMD_DEFINE_ARG
+#undef true
+#undef false
 	
-#define CMD_DEFINE_ARG(option_name, type, default, xxx) do {	\
+#define CMD_DEFINE_ARG(option_name, type, def_value, xxx) do {	\
 		error_flag = 0;											\
 		option = #option_name;									\
 		if (us_to_dash)											\
