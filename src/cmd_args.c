@@ -280,6 +280,20 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 			free (option_name);											\
 	} while (0)
 
+static const char *
+transform_default_bool_values (const char *def, CmdOptionType type)
+{
+	if (type == TYPE_bool) {
+		if (!strcmp (def, "true")) {
+			return "enabled";
+		} else {
+			return "disabled";
+		}
+	} else {
+		return def;
+	}
+}
+
 void
 cmd_show_usage (void)
 {
@@ -293,8 +307,13 @@ cmd_show_usage (void)
 	int len = 16;
 
 #define CMD_DEFINE_ARG(option_name, type, def_value, usage)	\
-	PRINT_USAGE_FOR (#option_name, TYPE_##type, usage,		\
-	                 #def_value, us_to_d, txt, len);
+	do {													\
+		const char *def_v =									\
+			transform_default_bool_values (#def_value,		\
+			                               TYPE_##type);	\
+		PRINT_USAGE_FOR (#option_name, TYPE_##type, usage,	\
+		                 def_v, us_to_d, txt, len);			\
+	} while (0);
 
 #include CMD_ARGS_OPTION_FILE
 
