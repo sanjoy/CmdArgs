@@ -75,7 +75,7 @@ parse_string (char *s, char **dest)
 
 #define GET_FUNC(type) parse_##type
 
-#define find_value(argc, argv, result, option_name, type_id,		\
+#define FIND_VALUE(argc, argv, result, option_name, type_id,		\
                    type, error_flag)								\
 	do {															\
 		int i;														\
@@ -175,7 +175,7 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 		option = #option_name;									\
 		if (us_to_dash)											\
 			option = replace_underscore_with_dash (option);		\
-		find_value (argc, argv, cmd->option_name, option,		\
+		FIND_VALUE (argc, argv, cmd->option_name, option,		\
 		            TYPE_##type, type, error_flag);				\
 		if (error_flag)	{										\
 			if (func == NULL ||									\
@@ -210,7 +210,7 @@ type_to_string (CmdOptionType type)
 	return NULL;
 }
 
-#define print_n_characters(txt, len) do {			\
+#define PRINT_N_CHARACTERS(txt, len) do {			\
 		char *text = (txt);							\
 		int l = (len);								\
 		int i;										\
@@ -218,7 +218,7 @@ type_to_string (CmdOptionType type)
 			putchar (text [i]);						\
 	} while (0)
 
-#define print_n_spaces(n) do {					\
+#define PRINT_N_SPACES(n) do {					\
 		int i, len = (n);						\
 		for (i = 0; i < len; i++)				\
 			putchar (' ');						\
@@ -230,13 +230,13 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 	int len = strlen (option);
 	int help_len = strlen (help);
 
-	print_n_spaces (2);
+	PRINT_N_SPACES (2);
 
 	printf ("%s\n", option);
 
 	while (help_len > 0) {
-		print_n_spaces (2 + option_col_width);
-		print_n_characters (help, CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
+		PRINT_N_SPACES (2 + option_col_width);
+		PRINT_N_CHARACTERS (help, CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
 		help += (CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
 		help_len -= (CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
 		putchar ('\n');
@@ -245,7 +245,7 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 	putchar ('\n');
 }
 
-#define dynamic_sprintf(buffer, buffer_len, format, ...) do {			\
+#define DYNAMIC_SPRINTF(buffer, buffer_len, format, ...) do {			\
 		int ret = snprintf (buffer, buffer_len, format, __VA_ARGS__);	\
 		if (ret >= buffer_len) {										\
 			buffer = realloc (buffer, ret + 1);							\
@@ -255,7 +255,7 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 		}																\
 	} while (0)
 
-#define print_usage_for(option, type, usage, def_value, us_to_dash,		\
+#define PRINT_USAGE_FOR(option, type, usage, def_value, us_to_dash,		\
                         buffer, buffer_len)								\
 	do {																\
 		char *option_name;												\
@@ -265,11 +265,11 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 		else															\
 			option_name = option_name;									\
 		if (type == TYPE_bool) {										\
-			dynamic_sprintf (buffer, buffer_len, "--disable-%s, "		\
+			DYNAMIC_SPRINTF (buffer, buffer_len, "--disable-%s, "		\
 			                 "--enable-%s [default=%s]: ", option_name, \
 			                 option_name, def_value);					\
 		} else {														\
-			dynamic_sprintf (buffer, buffer_len, "--%s=<%s value> "		\
+			DYNAMIC_SPRINTF (buffer, buffer_len, "--%s=<%s value> "		\
 			                 "[default=%s]: ",							\
 			                 option_name, type_to_string (type),		\
 			                 def_value);								\
@@ -293,7 +293,7 @@ cmd_show_usage (void)
 	int len = 16;
 
 #define CMD_DEFINE_ARG(option_name, type, def_value, usage)	\
-	print_usage_for (#option_name, TYPE_##type, usage,		\
+	PRINT_USAGE_FOR (#option_name, TYPE_##type, usage,		\
 	                 #def_value, us_to_d, txt, len);
 
 #include CMD_ARGS_OPTION_FILE
