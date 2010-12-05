@@ -1,21 +1,4 @@
 CmdArgs
+=======
 
-CmdArgs is a small C library to help aid paring command line arguments. It does this, not by providing a regular C function which then goes on to parse the command line arguments received by your program, but by having the client programmer declare the command line options statically in a file and then leveraging C macros to automagically process the arguments, and create a structure representing the values, after some rudimentary parsing and validation.
-
-You first need to create a file containing information about the command line options (referred to "cmd_arg.opt" from now one, though the actual filename can really be anything), using CMD_DEFINE_ARGS. The format is pretty simple (for a 'real' example, look at one of the opt files in the test directory):
-
-CMD_DEFINE_ARG (field name, type, default value, usage information)
-
-As of now, four types are supported: string (which is really a char *), long, double and bool. The first three work the way you'd expect them to; meaning to set option_x to 42, your user needs to execute "./your-program --option_x=42". The bool type is a little different - having a field names foo with the type bool accepts the options --enable-foo and --disable-foo.
-
-You can have three other things you can (optionally) control from "cmd_arg.opt" using #define statements. The first one is the name of the struct which will hold the parsed information. This is set by defining CMD_STRUCT_NAME. If you define CMD_TYPEDEF_STRUCT, the struct will be typedeffed to it's own name. If you define CMD_UNDERSCORE_TO_DASH, field names like "foo_bar" will be set by './yourprogram --foo-bar=baz' instead of './yourprogram --foo_bar=baz'.
-
-Once you have done so, to actually parse the arguments, you need to call cmd_parse_args from main. Note that this function automatically ignores the first argument, assuming it to be the executable file name.
-
-When compiling and linking, you need to define CMD_ARGS_OPTION_FILE to the name of the file where you've defined the command line arguments. It defaults to "cmd_args.opt". You probably need to do this directly from the compiler, using the '-D' option GCC has or anything equivalent for your compiler.
-
-See the test directory for a more concrete example.
-
-This is currently under development, and a lot of things can be done. One really cool thing would be to automatically guess the unique short flags for each command line argument. The parsing of the values is quite naive too; and can possibly made more robust.
-
-The whole concept behind this is to have a very painless way to parse command line arguments, possibly by losing some flexibility.
+CmdArgs is an attempt to come up with a solution for parsing command line arguments for traditional C programs. It tries to trade flexibility for ease of use, and does its job by (heavily) abusing the C preprocessor. While looking at the files in the test directory should be a hint, a more elaborate tutorial is in the making.
