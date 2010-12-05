@@ -24,6 +24,10 @@
 #define CMD_PRETTY_PRINT_COLUMN_WIDTH 80
 #endif
 
+#ifndef CMD_PRETTY_PRINT_OPTION_COLUMN_WIDTH_MAX
+#define CMD_PRETTY_PRINT_OPTION_COLUMN_WIDTH_MAX 5
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -77,9 +81,9 @@ parse_string (char *s, char **dest)
 		int i;														\
 		char *disable, *enable, *to_find;							\
 		if (type_id == TYPE_bool) {									\
-			disable = malloc (strlen ("--disable") +				\
+			disable = malloc (strlen ("--disable-") +				\
 			                  strlen (option_name) + 1);			\
-			enable = malloc (strlen ("--enable") +					\
+			enable = malloc (strlen ("--enable-") +					\
 			                 strlen (option_name) + 1);				\
 			strcpy (disable, "--disable-");							\
 			strcat (disable, option_name);							\
@@ -206,43 +210,53 @@ type_to_string (CmdOptionType type)
 	return NULL;
 }
 
-#define CMD_PRETTY_PRINT_COLUMN_WIDTH_DELTA 20
+#define print_n_characters(txt, len) do {			\
+		char *text = (txt);							\
+		int l = (len);								\
+		int i;										\
+		for (i = 0; i < l && text [i] != '\0'; i++)	\
+			putchar (text [i]);						\
+	} while (0)
 
-#ifdef CMD_PRETTY_PRINT
+#define print_n_spaces(n) do {					\
+		int i, len = (n);						\
+		for (i = 0; i < len; i++)				\
+			putchar (' ');						\
+	} while (0)
+
 static void
-pretty_print_usage_string (char *str, int margin)
+pretty_print_usage_string (char *option, char *help, int option_col_width)
 {
-	int prn_len = CMD_PRETTY_PRINT_COLUMN_WIDTH - margin;
+	int len = strlen (option);
+	int help_len = strlen (help);
 
-	if (prn_len < CMD_PRETTY_PRINT_COLUMN_WIDTH_DELTA) {
-		printf ("\n");
-		printf ("%s\n", str);
-	} else {
-		int i, len = strlen (str);
-		for (i = 0; i < len; i++) {
-			printf ("%c", str [i]);
-			if (i != 0 && (i % prn_len) == 0) {
-				int j = 0;
-				printf ("\n");
+	print_n_spaces (2);
 
-				for (j = 0; j < (margin - 1); j++) {
-					printf (" ");
-				}
-			}
-		}
-		if (((i - 1) % prn_len) != 0)
-			printf ("\n");
+	printf ("%s\n", option);
+
+	while (help_len > 0) {
+		print_n_spaces (2 + option_col_width);
+		print_n_characters (help, CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
+		help += (CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
+		help_len -= (CMD_PRETTY_PRINT_COLUMN_WIDTH - option_col_width);
+		putchar ('\n');
 	}
-}
-#else
-static void
-pretty_print_usage_string (char *str, int margin)
-{
-	printf ("%s\n", str);
-}
-#endif
 
-#define print_usage_for(option, type, usage, def_value, us_to_dash)		\
+	putchar ('\n');
+}
+
+#define dynamic_sprintf(buffer, buffer_len, format, ...) do {			\
+		int ret = snprintf (buffer, buffer_len, format, __VA_ARGS__);	\
+		if (ret >= buffer_len) {										\
+			buffer = realloc (buffer, ret + 1);							\
+			assert (buffer);											\
+			buffer_len = ret + 1;										\
+			snprintf (buffer, buffer_len, format, __VA_ARGS__);			\
+		}																\
+	} while (0)
+
+#define print_usage_for(option, type, usage, def_value, us_to_dash,		\
+                        buffer, buffer_len)								\
 	do {																\
 		char *option_name;												\
 		int margin = 0;													\
@@ -251,15 +265,17 @@ pretty_print_usage_string (char *str, int margin)
 		else															\
 			option_name = option_name;									\
 		if (type == TYPE_bool) {										\
-			margin = printf ("--disable-%s, --enable-%s"				\
-			                 " [default=%s]: ", option_name,			\
+			dynamic_sprintf (buffer, buffer_len, "--disable-%s, "		\
+			                 "--enable-%s [default=%s]: ", option_name, \
 			                 option_name, def_value);					\
 		} else {														\
-			margin = printf ("--%s=<%s value> [default=%s]: ",			\
+			dynamic_sprintf (buffer, buffer_len, "--%s=<%s value> "		\
+			                 "[default=%s]: ",							\
 			                 option_name, type_to_string (type),		\
 			                 def_value);								\
 		}																\
-		pretty_print_usage_string (usage, margin);						\
+		pretty_print_usage_string (buffer, usage,						\
+		                    CMD_PRETTY_PRINT_OPTION_COLUMN_WIDTH_MAX);	\
 		if (us_to_dash)													\
 			free (option_name);											\
 	} while (0)
@@ -273,9 +289,16 @@ cmd_show_usage (void)
 	int us_to_d = 0;
 #endif
 
+	char *txt = malloc (16);
+	int len = 16;
+
 #define CMD_DEFINE_ARG(option_name, type, def_value, usage)	\
 	print_usage_for (#option_name, TYPE_##type, usage,		\
-	#def_value, us_to_d);
+	                 #def_value, us_to_d, txt, len);
 
 #include CMD_ARGS_OPTION_FILE
+
+#undef CMD_DEFINE_ARG
+
+	free (txt);
 }
