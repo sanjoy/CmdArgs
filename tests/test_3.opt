@@ -1,0 +1,11 @@
+#define CMD_STRUCT_NAME CommandLineArgs
+#define CMD_TYPEDEF_STRUCT
+#define CMD_UNDERSCORE_TO_DASH
+#define CMD_PRETTY_PRINT
+
+CMD_DEFINE_ARG (string_one, string, "default-value", "Some Usage")
+CMD_DEFINE_ARG (string_two, string, NULL, "This defaults to NULL.")
+CMD_DEFINE_ARG (toggle_one, toggle, false, "Toggle 1")
+CMD_DEFINE_ARG (bool_a, bool, true, "Bool")
+CMD_DEFINE_ARG (double_one, double, -1.0, "Double")
+CMD_DEFINE_ARG (toggle_two, toggle, false, "Toggle 2")

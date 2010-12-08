@@ -34,18 +34,28 @@
 
 typedef char* string;
 typedef int bool;
+typedef int toggle;
 
 typedef enum {
 	TYPE_long,
 	TYPE_double,
 	TYPE_string,
-	TYPE_bool
+	TYPE_bool,
+	TYPE_toggle
 } CmdOptionType;
 
 static int parse_long (char *, long *) __attribute__ ((unused));
 static int parse_double (char *, double *) __attribute__ ((unused));
 static int parse_string (char *, char **) __attribute__ ((unused));
 static int parse_bool (char *, int *) __attribute__ ((unused));
+static int parse_toggle (char *, int *) __attribute__ ((unused));
+
+static int
+parse_toggle (char *s, int *b)
+{
+	assert (0);
+	return 0;
+}
 
 static int
 parse_bool (char *s, int *b)
@@ -102,6 +112,9 @@ parse_string (char *s, char **dest)
 				} else if (strcmp (argv [i], enable) == 0) {		\
 					(result) = (type) 1;							\
 				}													\
+			} else if (type_id == TYPE_toggle) {					\
+				if (!strcmp (argv [i], to_find))					\
+					(result) = (type) 1;							\
 			} else {												\
 				if (strstr (argv [i], to_find) == argv [i]) {		\
 					char *index = strstr (argv [i], "=");			\
@@ -145,6 +158,11 @@ static char *replace_underscore_with_dash (char *str)
 	return x;
 }
 
+#define DEFAULT_VALUE_VALIDATION(type_id, default_value, type) do {	\
+		if (type_id == TYPE_toggle)									\
+			assert (default_value == (type) 0);						\
+	} while (0)
+
 int
 cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
                 CommandLineParsingErrorFunc func, void *error_data)
@@ -167,12 +185,12 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 #define CMD_DEFINE_ARG(option, type, def_value, help_str) (cmd->option = def_value);
 #include CMD_ARGS_OPTION_FILE
 #undef CMD_DEFINE_ARG
-#undef true
-#undef false
 	
 #define CMD_DEFINE_ARG(option_name, type, def_value, xxx) do {	\
 		error_flag = 0;											\
 		option = #option_name;									\
+		DEFAULT_VALUE_VALIDATION (TYPE_##type, def_value,		\
+		                          type);						\
 		if (us_to_dash)											\
 			option = replace_underscore_with_dash (option);		\
 		FIND_VALUE (argc, argv, cmd->option_name, option,		\
@@ -190,6 +208,8 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 #include CMD_ARGS_OPTION_FILE
 
 #undef CMD_DEFINE_ARG
+#undef true
+#undef false
 	return 1;
 }
 
@@ -205,6 +225,8 @@ type_to_string (CmdOptionType type)
 		return "floating point";
 	case TYPE_long:
 		return "integer";
+	case TYPE_toggle:
+		return "toggle";
 	}
 	assert (0);
 	return NULL;
@@ -268,6 +290,9 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 			DYNAMIC_SPRINTF (buffer, buffer_len, "--disable-%s, "		\
 			                 "--enable-%s [default=%s]: ", option_name, \
 			                 option_name, def_value);					\
+		} else if (type == TYPE_toggle) {								\
+			DYNAMIC_SPRINTF (buffer, buffer_len, "--%s [default=off]",	\
+			                 option_name);								\
 		} else {														\
 			DYNAMIC_SPRINTF (buffer, buffer_len, "--%s=<%s value> "		\
 			                 "[default=%s]: ",							\

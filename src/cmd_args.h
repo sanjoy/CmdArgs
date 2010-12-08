@@ -17,6 +17,7 @@
 
 #define bool int
 #define string char *
+#define toggle int
 
 #ifdef CMD_TYPEDEF_STRUCT
 typedef struct {
@@ -34,6 +35,7 @@ struct CMD_STRUCT_NAME {
 
 #undef bool
 #undef string
+#undef toggle
 
 /*
  * This callback should return 0 to have CmdArgs continue parsing
