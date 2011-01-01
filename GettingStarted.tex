@@ -1,0 +1,103 @@
+\documentclass[a4paper,11pt]{article}
+\title{Getting Started With CmdArgs}
+\author{Sanjoy Das}
+\begin{document}
+\maketitle
+\newpage
+
+\section{Introduction}
+
+\texttt{CmdArgs} is an attempt towards a solution for parsing command line arguments in traditional C programs. It tries to trade flexibility for ease of use, and does its job by abusing the C preprocessor.
+
+\section{The \textit{OPT} File}
+
+All of the information about the expected command-line options needs to be put in an \textit{OPT} file. Apart from some other (optional) things that can be put in the \textit{OPT} file described later, the \textit{OPT} file shall essentially consist of a list of \texttt{CMD\_DEFINE\_ARG} statements, each supplying information about one command line option.
+
+Once the \textit{OPT} file properly defined, to actually use \texttt{CmdArgs}, \texttt{cmd\_args.h} needs to be included in the file from where  the command line arguments need to be parsed. A \texttt{struct}\footnote{Henceforth referred to as the \textit{parsed structure}.} will automatically have been defined by the preprocessor, named \texttt{CommandLineArgs}\footnote{This can be changed easily, as the later sections shall show.} by default, and also \texttt{typedef}fed to \texttt{CommandLineArgs}\footnote{This too can be changed.}.
+
+\texttt{cmd\_parse\_args} can then be called to parse the command line arguments.
+
+\subsection{\texttt{CMD\_DEFINE\_ARG}}
+
+The syntax for a \texttt{CMD\_DEFINE\_ARG} is as follows:
+
+\texttt{CMD\_DEFINE\_ARG (\textit{name}, \textit{type}, \textit{default value}, \textit{usage})}.
+
+The \texttt{\textit{type}} can be one of the following: \texttt{string}, \texttt{bool}, \texttt{long}, \texttt{double}, \texttt{toggle}.
+
+A \texttt{string} is ultimately represented as a \texttt{char *} and both \texttt{bool} and \texttt{toggle} are represented as  \texttt{int}s in the parsed structure.
+
+\subsubsection{The Token Names}
+
+The token names determine two things simultaneously: the command-line option to parse and the field in the parsed structure which will hold its value. So having a \texttt{CMD\_DEFINE\_ARG (xxx, string, ``Default'', ``Usage'')} will have \texttt{CmdArgs} look for something like \texttt{--xxx=somevalue} in the command line arguments. It will then set the \texttt{xxx} field of the parsed structure to  \texttt{``somevalue''}.
+
+\subsubsection{Argument Types}
+
+\begin{description}
+
+\item [\texttt{string}]
+Will accept strings. If \texttt{\textit{name}} is \texttt{foo}, this will accept arguments like \texttt{--foo=bar} and \texttt{--foo=``bar baz''}. The corresponding field in the parsed structure will have the type \texttt{char *} and shall point to a regular null-terminated C string.
+
+\item [\texttt{long}]
+Will accept \texttt{long}s. If \texttt{\textit{name}} is \texttt{foo}, this will accept arguments like \texttt{--foo=42}.
+
+\item [\texttt{double}]
+Will accept \texttt{double}s. If \texttt{\textit{name}} is \texttt{foo}, this will accept arguments like \texttt{--foo=42.0}.
+
+\item [\texttt{bool}]
+Will support reading boolean values from the command line. This will look for command line options like \texttt{--enable-foo} and \texttt{--disable-foo}, where \texttt{foo} is the \texttt{\textit{name}} supplied.
+
+\item [\texttt{toggle}]
+Like \texttt{bool}, this too reads and stores boolean values, with the difference being that instead of looking for \texttt{--enable-foo} and \texttt{--disable-foo}, it will look for \texttt{--foo}. If \texttt{--foo} is present, the corresponding field in the parsed structure will be set to \texttt{1}, else to \texttt{0}.
+
+\end{description}
+
+\subsection{Other Options}
+
+There are few other things that can be changed from the \textit{OPT} file:
+
+\begin{itemize}
+
+\item Define \texttt{CMD\_STRUCT\_NAME} to the name of the \texttt{struct} whose instance shall hold the parsed arguments (the parsed structure). This defaults to \texttt{CommandLineArgs}.
+
+\item Define \texttt{CMD\_TYPEDEF\_STRUCT} to have the \texttt{struct} \texttt{typedef}fed to it's own name.
+
+\item Define \texttt{CMD\_UNDERSCORE\_TO\_DASH} to have \texttt{CmdArgs} substitute the underscores in \texttt{\textit{name}} in \texttt{CMD\_DEFINE\_ARG} with dashes before actually looking through the command line arguments. So, if this is defined,
+
+\texttt{CMD\_DEFINE\_ARG (foo\_bar, string, ``Default'', ``Usage'')}
+
+will actually look for \texttt{foo-bar} in the arguments passed. The actual field in the parsed structure will remain \texttt{foo\_bar}, since the C syntax shall not allow otherwise.
+
+\end{itemize}
+
+\subsection{Parsing}
+
+Once the \textit{OPT} file is defined, \texttt{cmd\_parse\_args} will do all the work. The signature of the function is 
+
+\texttt{int cmd\_parse\_args (pointer to parsed structure, argc, argv, error function, error function data)}.
+
+The first command line argument (as according to \texttt{argc} and \texttt{argv}) is discarded.
+
+The type of the error function should be  
+
+\texttt{int CommandLineParsingErrorFunc (error function data, error option, error value)}.
+
+The last option to \texttt{cmd\_parse\_args} is passed as the first argument to the error function. If the error function returns \texttt{0}, the parsing continues, otherwise it stops.
+
+The error function may be \texttt{NULL}, in which case parsing shall continue silently in case of an error.
+
+\subsection{Usage}
+
+The client programmer can have \texttt{CmdArgs} print the usage by calling \texttt{cmd\_show\_usage ()}.
+
+\subsection{Compiling}
+
+\texttt{CmdArgs} is not the traditional C library - because it uses the pre-processor heavily (which is where most of its power lies) it is not possible to compile it to, say, a shared object and use it in an application.
+
+The source code needs to reside with the client project. The name of the \textit{OPT} file defaults to \texttt{``cmd\_args.opt''}, though it can be changed by defining \texttt{CMD\_ARGS\_OPTION\_FILE} to whatever the desired the file name is. See \texttt{``tests/run\_tests.sh''} for examples.
+
+\subsection{Examples}
+
+Minimalistic code examples can be found in the \texttt{test} directory.
+
+\end{document}
