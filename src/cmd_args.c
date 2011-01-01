@@ -249,7 +249,6 @@ type_to_string (CmdOptionType type)
 static void
 pretty_print_usage_string (char *option, char *help, int option_col_width)
 {
-	int len = strlen (option);
 	int help_len = strlen (help);
 
 	PRINT_N_SPACES (2);
@@ -280,8 +279,7 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 #define PRINT_USAGE_FOR(option, type, usage, def_value, us_to_dash,		\
                         buffer, buffer_len)								\
 	do {																\
-		char *option_name;												\
-		int margin = 0;													\
+		char *option_name = NULL;										\
 		if (us_to_dash)													\
 			option_name = replace_underscore_with_dash (option);		\
 		else															\
