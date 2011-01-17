@@ -21,7 +21,7 @@ make_assertions (CommandLineArgs *args)
 	assert (!args->bool_two);
 	assert (!strcmp (args->string_one, "default-value"));
 	assert (!strcmp (args->string_two, "something"));
-	assert (almost_equal(args->double_one, 4.4));
+	assert (almost_equal (args->double_one, 4.4));
 	assert (args->long_one == 0);
 }
 
