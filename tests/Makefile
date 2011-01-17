@@ -9,20 +9,20 @@ QUOTE=\"
 
 .SUFFIXES: .c
 
-all: prep test.o $(TARGETS) final
+all: prep utils.o $(TARGETS) final
 
 prep:
 	test -d $(BINDIR) || mkdir -p $(BINDIR)
 
-test.o : test.c
-	$(CC) $(CFLAGS) -c test.c
+utils.o : utils.c
+	$(CC) $(CFLAGS) -c utils.c
 
 .c: $< ../src/cmd_args.c
 	$(CC) -DCMD_ARGS_OPTION_FILE="$(QUOTE)$*.opt$(QUOTE)" $(CFLAGS) \
-	      $(INCLUDE) test.c ../src/cmd_args.c $< -o $(BINDIR)/$*
+	      $(INCLUDE) utils.o ../src/cmd_args.c $< -o $(BINDIR)/$*
 
 final:
 	./run_tests.sh FROM_MAKEFILE
 
 clean:
-	rm -rf test.o $(BINDIR)
+	rm -rf utils.o $(BINDIR)
