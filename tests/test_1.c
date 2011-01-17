@@ -1,4 +1,5 @@
 #include "cmd_args.h"
+#include "test.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -20,7 +21,7 @@ make_assertions (CommandLineArgs *args)
 	assert (!args->bool_two);
 	assert (!strcmp (args->string_one, "default-value"));
 	assert (!strcmp (args->string_two, "something"));
-	assert (args->double_one == 4.4); /* Risky. Find a better way. */
+	assert (almost_equal(args->double_one, 4.4));
 	assert (args->long_one == 0);
 }
 
