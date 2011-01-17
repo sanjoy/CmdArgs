@@ -1,4 +1,4 @@
-CC=gcc
+CC=cc
 CFLAGS=-g -O0 -Wall -Werror
 
 SOURCES=test_1.c test_2.c test_3.c
@@ -22,7 +22,7 @@ test.o : test.c
 	      $(INCLUDE) test.c ../src/cmd_args.c $< -o $(BINDIR)/$*
 
 final:
-	./run_tests.sh
+	./run_tests.sh FROM_MAKEFILE
 
 clean:
 	rm -rf test.o $(BINDIR)
