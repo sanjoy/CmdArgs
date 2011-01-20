@@ -22,7 +22,7 @@ $(BINDIR):
 .PHONY: test clean
 
 test: $(TARGETS)
-	for i in $^; do ./$$i; done && echo 'Passed all tests'
+	@for i in $^; do ./$$i; done
 
 clean:
 	rm -rf $(BINDIR)
