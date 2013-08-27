@@ -32,6 +32,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+										// E stands for "expand", R stands for "raw"
+#define XSTRR(X) #X						// Wrap a token in quotes - don't expand macro params.
+#define XSTRE(X) XSTRR(X)				// Wrap a token in quotes - expand macro params.
+#define XJNR(X,Y) X##Y					// Join two tokens - don't expand macro params.
+#define XJNE(X,Y) XJNR(X,Y)				// Join two tokens - expand macro params
+#define XTYPID(TYP) XJNR(TYPE_,TYP)		// Generate an identifier for one of the CmdOptionType values.
+#define XTYPS(TYP) XJNE(TYPESTR_,TYP)	// Generate an identifier for one of the TYPESTR_<type> macros.
+
+#define TYPESTR_bool "boolean"
+#define TYPESTR_string "string"
+#define TYPESTR_double "floating point"
+#define TYPESTR_long "integer"
+#define TYPESTR_toggle "toggle"
+
 typedef char* string;
 typedef int bool;
 typedef int toggle;
@@ -44,11 +58,16 @@ typedef enum {
 	TYPE_toggle
 } CmdOptionType;
 
+#ifdef _MSC_VER
+#define strdup _strdup
+#define snprintf _snprintf
+#else
 static int parse_long (char *, long *) __attribute__ ((unused));
 static int parse_double (char *, double *) __attribute__ ((unused));
 static int parse_string (char *, char **) __attribute__ ((unused));
 static int parse_bool (char *, int *) __attribute__ ((unused));
 static int parse_toggle (char *, int *) __attribute__ ((unused));
+#endif
 
 static int
 parse_toggle (char *s, int *b)
@@ -83,29 +102,40 @@ parse_string (char *s, char **dest)
 	return 1;
 }
 
-#define GET_FUNC(type) parse_##type
+#define GET_FUNC(type) XJNR(parse_,type)
 
+// For boolean options, we created a fixed char arrays to store the
+// --enable-option, --disable-option strings. All other options will
+// be formatted as --option, so we know that the --enable-option
+// buffer will be large enough to hold them.
+// 
+// For index ->
+//   sizeof("optionA") = 8
+//   strlen("--optionA=") = 10
+//   arg[sizeof(option_name)] + 1 == '='
+//   index = &arg[sizeof(option_name) + 2]
 #define FIND_VALUE(argc, argv, result, option_name, type_id,		\
                    type, error_flag)								\
 	do {															\
 		int i;														\
-		char *disable, *enable, *to_find;							\
-		if (type_id == TYPE_bool) {									\
-			disable = malloc (strlen ("--disable-") +				\
-			                  strlen (option_name) + 1);			\
-			enable = malloc (strlen ("--enable-") +					\
-			                 strlen (option_name) + 1);				\
-			strcpy (disable, "--disable-");							\
-			strcat (disable, option_name);							\
-			strcpy (enable, "--enable-");							\
-			strcat (enable, option_name);							\
+		char *to_find,												\
+			 disable[sizeof(option_name)+10] = "--disable-",		\
+			 enable [sizeof(option_name)+ 9] = "--",				\
+			 option[sizeof(option_name)] = option_name;				\
+																	\
+		to_find = enable;											\
+		if(us_to_dash) replace_underscore_with_dash(option);		\
+		if(type_id == TYPE_bool) {									\
+			strcat(disable, option);								\
+			strcat(enable, "enable-");								\
+			strcat(enable,  option);								\
 		} else {													\
-			to_find = malloc (strlen (option_name) + 3);			\
-			strcpy (to_find, "--");									\
-			strcat (to_find, option_name);							\
+			strcat(to_find, option);								\
 		}															\
 																	\
 		for (i = 0; i < argc; i++) {								\
+			size_t arglen = strlen(argv [i]);						\
+			if(arglen < (sizeof(option_name) + 1)) continue;		\
 			if (type_id == TYPE_bool) {								\
 				if (strcmp (argv [i], disable) == 0) {				\
 					(result) = (type) 0;							\
@@ -115,47 +145,34 @@ parse_string (char *s, char **dest)
 			} else if (type_id == TYPE_toggle) {					\
 				if (!strcmp (argv [i], to_find))					\
 					(result) = (type) 1;							\
-			} else {												\
-				if (strstr (argv [i], to_find) == argv [i]) {		\
-					char *index = strstr (argv [i], "=");			\
-					if (index != NULL) {							\
-						type value;									\
-						index++;									\
-						if (GET_FUNC (type) (index, &value))		\
-							(result) = value;						\
-						else {										\
-							error_flag = 1;							\
-							error_option = strdup (to_find + 2);	\
-							error_value = index;					\
-						}											\
+			} else if(arglen > (sizeof(option_name)+2)) {			\
+				if ((strncmp(										\
+				  argv [i], to_find, sizeof(option_name) + 1 		\
+				) == 0) && (										\
+				  (argv [i][sizeof(option_name) + 1]) == '='		\
+				)) {												\
+					type value;										\
+					char* index = 									\
+					  &((argv [i])[sizeof(option_name)+2]);			\
+					if (*index && GET_FUNC (type) (index, &value))	\
+						(result) = value;							\
+					else {											\
+						error_flag = 1;								\
+						error_option = strdup (to_find + 2);		\
+						error_value = strdup (index);				\
 					}												\
 				}													\
 			}														\
 		}															\
-																	\
-		if (type_id == TYPE_bool) {									\
-			free (disable);											\
-			free (enable);											\
-		} else {													\
-			free (to_find);											\
-		}															\
 	} while (0)
 
-static char *replace_underscore_with_dash (char *str)
+static void replace_underscore_with_dash (char *str)
 {
-	char *x = malloc (strlen (str) + 1);
-	char *i = x;
-
-	while (*str) {
-		if (*str == '_') {
-			*i++ = '-';
-			str++;
-		} else {
-			*i++ = *str++;
-		}
+	char* p = str;
+	while(*p) {
+		if(*p == '_') *p = '-';
+		p++;
 	}
-	*i = '\0';
-	return x;
 }
 
 #define DEFAULT_VALUE_VALIDATION(type_id, default_value, type) do {	\
@@ -167,13 +184,12 @@ int
 cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
                 CommandLineParsingErrorFunc func, void *error_data)
 {
-	char *option, *error_option, *error_value;
-	int error_flag = 0;
-
+	char *error_option = NULL, *error_value = NULL;
+	int error_flag = 0,
 #ifdef CMD_UNDERSCORE_TO_DASH
-	int us_to_dash = 1;
+	    us_to_dash = 1;
 #else
-	int us_to_dash = 0;
+	    us_to_dash = 0;
 #endif
 
 	/* Remove the filename */
@@ -182,27 +198,27 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 
 #define true 1
 #define false 0
+
+// Note: The following doesn't appear to work as intended for strings
+//       when compiling with MSVC
 #define CMD_DEFINE_ARG(option, type, def_value, help_str) (cmd->option = def_value);
 #include CMD_ARGS_OPTION_FILE
 #undef CMD_DEFINE_ARG
-	
+
 #define CMD_DEFINE_ARG(option_name, type, def_value, xxx) do {	\
 		error_flag = 0;											\
-		option = #option_name;									\
-		DEFAULT_VALUE_VALIDATION (TYPE_##type, def_value,		\
+		DEFAULT_VALUE_VALIDATION (XTYPID(type), def_value,		\
 		                          type);						\
-		if (us_to_dash)											\
-			option = replace_underscore_with_dash (option);		\
-		FIND_VALUE (argc, argv, cmd->option_name, option,		\
-		            TYPE_##type, type, error_flag);				\
+		FIND_VALUE (argc, argv, cmd->option_name, 				\
+		            XSTRE(option_name), XTYPID(type),			\
+		            type, error_flag);							\
 		if (error_flag)	{										\
 			if (func == NULL ||									\
 			    func (error_data, error_option, error_value))	\
 				return 0;										\
-			free (error_option);								\
+			if(error_option) free((void*)error_option);			\
+			if(error_option) free((void*)error_value);			\
 		}														\
-		if (us_to_dash)											\
-			free (option);										\
 	} while (0);
 
 #include CMD_ARGS_OPTION_FILE
@@ -211,25 +227,6 @@ cmd_parse_args (STRUCT_TYPE *cmd, int argc, char **argv,
 #undef true
 #undef false
 	return 1;
-}
-
-static char *
-type_to_string (CmdOptionType type)
-{
-	switch (type) {
-	case TYPE_bool:
-		return "boolean";
-	case TYPE_string:
-		return "string";
-	case TYPE_double:
-		return "floating point";
-	case TYPE_long:
-		return "integer";
-	case TYPE_toggle:
-		return "toggle";
-	}
-	assert (0);
-	return NULL;
 }
 
 #define PRINT_N_CHARACTERS(txt, len) do {			\
@@ -266,56 +263,69 @@ pretty_print_usage_string (char *option, char *help, int option_col_width)
 	putchar ('\n');
 }
 
-#define DYNAMIC_SPRINTF(buffer, buffer_len, format, ...) do {			\
-		int ret = snprintf (buffer, buffer_len, format, __VA_ARGS__);	\
-		if (ret >= buffer_len) {										\
-			buffer = realloc (buffer, ret + 1);							\
-			assert (buffer);											\
-			buffer_len = ret + 1;										\
-			snprintf (buffer, buffer_len, format, __VA_ARGS__);			\
-		}																\
-	} while (0)
+#undef NULL
+#define true "\x1\x1x1\x1\x1\x1\x1"		// strlen(enabled)
+#define false "\0\0\0\0\0\0\0\0"		// strlen(disabled)
+#define NULL "\0\0\0\0"
 
-#define PRINT_USAGE_FOR(option, type, usage, def_value, us_to_dash,		\
-                        buffer, buffer_len)								\
+// Leave off the spaces on "[default=]:" to compensate for it adding a 
+// terminating zero to the option and the value.
+#define XTYPVAL(TYP) "=<" XTYPS(TYP) " value>"							// Generate the "=<typename value> " string.
+#define XSZM(opt,inc,mult) (((sizeof(opt) - 1) * mult) + inc + 1)		// Length of (opt * mult) + inc with trailing 0
+#define XSZ(opt,inc) XSZM(opt,inc,1)									// Length of opt + inc with trailing 0
+#define XDEFLEN(dv) (sizeof(dv) + sizeof("[default=]:"))				// Length for default values string
+#define XVALLEN(dv) XDEFLEN(XSTRE(dv))									// Length for numerical default values.
+#define XTYPLEN(typ) (sizeof(XTYPVAL(typ)) - 1)							// Length of the "=<typename value> " string.
+
+// Length of buffer for options that aren't booleans or toggles.
+#define XTYPSTRLEN(opt,type,dv) 										\
+		( XSZ(opt,2) + XTYPLEN(type) + XVALLEN(dv) )					
+
+// Add the "[default=DEFAULT_VALUE]: " string, then print the buffer.
+#define PRINT_DEFAULT_VAL(buf,dv,use)									\
+		strcat(buf, " [default=" dv "]: ");								\
+		pretty_print_usage_string(buf, use,								\
+				CMD_PRETTY_PRINT_OPTION_COLUMN_WIDTH_MAX)
+
+#define PRINT_USAGE_FOR(option, type, usage, def_value,					\
+                        us_to_dash)										\
 	do {																\
-		char *option_name = NULL;										\
+		type def_val_check_t = (type)(def_value);						\
+		char option_name[sizeof(option)] = option,						\
+		     *defval_check_s = *((char**)&def_val_check_t);				\
 		if (us_to_dash)													\
-			option_name = replace_underscore_with_dash (option);		\
-		else															\
-			option_name = option_name;									\
-		if (type == TYPE_bool) {										\
-			DYNAMIC_SPRINTF (buffer, buffer_len, "--disable-%s, "		\
-			                 "--enable-%s [default=%s]: ", option_name, \
-			                 option_name, def_value);					\
-		} else if (type == TYPE_toggle) {								\
-			DYNAMIC_SPRINTF (buffer, buffer_len, "--%s [default=off]",	\
-			                 option_name);								\
+			replace_underscore_with_dash (option_name);					\
+		if (XTYPID(type) == TYPE_bool) {								\
+			char buffer[XSZM(option,21,2) + XDEFLEN(def_value)] = "";	\
+			sprintf(buffer, "--disable-%s, --enable-%s", option_name,	\
+			                                     option_name);			\
+			if(*defval_check_s) {										\
+				PRINT_DEFAULT_VAL(buffer, "enabled", usage);			\
+			} else {													\
+				PRINT_DEFAULT_VAL(buffer, "disabled", usage);			\
+			}															\
+		} else if (XTYPID(type) == TYPE_toggle) {						\
+			char buffer[XSZ(option,2)+XDEFLEN(def_value)] = "--";		\
+			strcat(buffer, option_name);								\
+			if(*defval_check_s) {										\
+				PRINT_DEFAULT_VAL(buffer, "enabled", usage);			\
+			} else {													\
+				PRINT_DEFAULT_VAL(buffer, "disabled", usage);			\
+			}															\
 		} else {														\
-			DYNAMIC_SPRINTF (buffer, buffer_len, "--%s=<%s value> "		\
-			                 "[default=%s]: ",							\
-			                 option_name, type_to_string (type),		\
-			                 def_value);								\
+			char buffer[XTYPSTRLEN(option, type, def_value)] = "";		\
+			sprintf(buffer, "--%s" XTYPVAL(type), option_name);			\
+			if (XTYPID(type) == TYPE_string) {							\
+				if (!(*defval_check_s)) {								\
+					PRINT_DEFAULT_VAL(buffer, "NULL", usage);			\
+				} else {												\
+					PRINT_DEFAULT_VAL(buffer, XSTRE(def_value), usage);	\
+				}														\
+			} else {													\
+				PRINT_DEFAULT_VAL(buffer, XSTRE(def_value), usage);		\
+			}															\
 		}																\
-		pretty_print_usage_string (buffer, usage,						\
-		                    CMD_PRETTY_PRINT_OPTION_COLUMN_WIDTH_MAX);	\
-		if (us_to_dash)													\
-			free (option_name);											\
 	} while (0)
-
-static const char *
-transform_default_bool_values (const char *def, CmdOptionType type)
-{
-	if (type == TYPE_bool) {
-		if (!strcmp (def, "true")) {
-			return "enabled";
-		} else {
-			return "disabled";
-		}
-	} else {
-		return def;
-	}
-}
 
 void
 cmd_show_usage (void)
@@ -326,21 +336,15 @@ cmd_show_usage (void)
 	int us_to_d = 0;
 #endif
 
-	char *txt = malloc (16);
-	int len = 16;
-
-#define CMD_DEFINE_ARG(option_name, type, def_value, usage)	\
-	do {													\
-		const char *def_v =									\
-			transform_default_bool_values (#def_value,		\
-			                               TYPE_##type);	\
-		PRINT_USAGE_FOR (#option_name, TYPE_##type, usage,	\
-		                 def_v, us_to_d, txt, len);			\
-	} while (0);
-
+#define CMD_DEFINE_ARG(option_name, type, def_value, usage)				\
+		PRINT_USAGE_FOR(XSTRE(option_name), type, usage, def_value,		\
+		                us_to_d);
 #include CMD_ARGS_OPTION_FILE
-
 #undef CMD_DEFINE_ARG
 
-	free (txt);
 }
+
+#undef true
+#undef false
+#undef NULL
+#define NULL ((void*)0)
