@@ -1,0 +1,24 @@
+# Folders
+SRC_DIR = ..\src
+OBJ_DIR = ..\obj
+
+# Programs
+CC = cl
+LD = link
+CFLAGS = -nologo -W3 -WX- -O2 -Ob2 -Oi -Og -GA -MD -GF -Gm- -D_CRT_SECURE_NO_WARNINGS -DNDEBUG=1 -D_NDEBUG=1 -I$(SRC_DIR) -I.
+LDFLAGS = -nologo -INCREMENTAL:NO -LTCG -OPT:REF -OPT:ICF -SUBSYSTEM:CONSOLE
+
+WINTEST_OBJS = "$(OBJ_DIR)\win_test.obj"
+
+default: build
+
+build: $(OBJ_DIR) win_test.exe
+
+win_test.exe: $(WINTEST_OBJS)
+	$(LD) $(LDFLAGS) -OUT:$@ $(WINTEST_OBJS)
+
+{.}.c{$(OBJ_DIR)}.obj:
+	$(CC) $(CFLAGS) -c -Fo$@ $<
+
+$(OBJ_DIR):
+	@mkdir $@>nul 2>nul
