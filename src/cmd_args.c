@@ -124,7 +124,7 @@ parse_string (char *s, char **dest)
 			 option[sizeof(option_name)] = option_name;				\
 																	\
 		to_find = enable;											\
-		replace_underscore_with_dash(option);						\
+		if(us_to_dash) replace_underscore_with_dash(option);		\
 		if(type_id == TYPE_bool) {									\
 			strcat(disable, option);								\
 			strcat(enable, "enable-");								\
@@ -169,8 +169,10 @@ parse_string (char *s, char **dest)
 static void replace_underscore_with_dash (char *str)
 {
 	char* p = str;
-	while(*p)
-		*p++ = (*p == '_') ? '-' : *p;
+	while(*p) {
+		if(*p == '_') *p = '-';
+		p++;
+	}
 }
 
 #define DEFAULT_VALUE_VALIDATION(type_id, default_value, type) do {	\
