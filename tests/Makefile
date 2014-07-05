@@ -1,28 +1,28 @@
 CC=cc
 CFLAGS=-g -O0 -Wall -Werror
-
-SOURCES=test_1.c test_2.c test_3.c
 INCLUDE=-I. -I../src
-BINDIR=test_binaries
-TARGETS=$(SOURCES:.c=)
-QUOTE=\"
 
-.SUFFIXES: .c
+BINDIR=build
+OBJECTS=$(addprefix $(BINDIR)/, utils.o)
+TARGETS=$(addprefix $(BINDIR)/, test_1 test_2 test_3)
 
-all: prep utils.o $(TARGETS) final
+all: $(TARGETS) test
 
-prep:
-	test -d $(BINDIR) || mkdir -p $(BINDIR)
+.SECONDEXPANSION:
+$(TARGETS): $$(@F).c utils.h ../src/cmd_args.h $(OBJECTS) | $(BINDIR)
+	$(CC) -DCMD_ARGS_OPTION_FILE="\"$(@F).opt\"" $(CFLAGS) \
+	      $(INCLUDE) ../src/cmd_args.c $^ -o $@
 
-utils.o : utils.c
-	$(CC) $(CFLAGS) -c utils.c
+$(BINDIR)/%.o: %.c | $(BINDIR)
+	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c $^
 
-.c: $< ../src/cmd_args.c
-	$(CC) -DCMD_ARGS_OPTION_FILE="$(QUOTE)$*.opt$(QUOTE)" $(CFLAGS) \
-	      $(INCLUDE) utils.o ../src/cmd_args.c $< -o $(BINDIR)/$*
+$(BINDIR):
+	mkdir $(BINDIR)
 
-final:
-	./run_tests.sh FROM_MAKEFILE
+.PHONY: test clean
+
+test: $(TARGETS)
+	@for i in $^; do ./$$i; done
 
 clean:
-	rm -rf utils.o $(BINDIR)
+	rm -rf $(BINDIR)
